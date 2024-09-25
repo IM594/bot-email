@@ -1,3 +1,7 @@
+// 需要修改 2 个部分：
+// 1. 图片需要放到 server 上，然后替换掉类似 https://via.placeholder.com/68x22 这样的占位符（图片 link 和 alt 一一对应）
+// 2. 需要把 go 的相关代码重新写下，因为我定义的 struct 只是为了方便定位那里要修改，实际的逻辑需要重新写。
+
 package templates
 
 import (

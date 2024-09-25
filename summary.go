@@ -3,18 +3,23 @@ package templates
 import (
 	"text/template"
 	"time"
+	"strings"
+	"fmt"
 )
 
 type Summary struct {
 	Email    string
 	ViaEmail string
-
-	StartTime         time.Time
-	Runtime           int
+	DeviceName    string
+	ResourcesName string //未来会用，现在前端暂时不展示
+	StartTime     time.Time
+	Runtime       string
+	MeetingTitle  string
+	Overview          []string
 	ParticipantsCount int
 	Words             int
-	Overview          []string
 	Link              string
+
 }
 
 func (i *Summary) GetRecipients() []string {
@@ -29,10 +34,41 @@ func (i *Summary) SetViaEmail(viaEmail string) {
 	i.ViaEmail = viaEmail
 }
 
-var summaryTemplate = template.Must(template.New("ResetPassword").Funcs(funcMap).Parse(
+// 转换时间格式成Monday 3:04pm • Jan 2, 2006
+func (i *Summary) FormatTime(t time.Time) string {
+	return t.Format("Monday 3:04pm • Jan 2, 2006")
+}
+
+// 转换Overview 的 string[] 成 string
+func (i *Summary) FormatOverview(overview []string) string {
+	return strings.Join(overview, " ")
+}
+
+// 转换 Runtime 成 00:12:30
+func (i *Summary) FormatRuntime(runtime string) string {
+	duration, err := time.ParseDuration(runtime)
+	if err != nil {
+		return runtime // 或者返回一个默认值，或者记录错误
+	}
+	return duration.String()
+}
+
+// 转换 words 为 3,612
+func (i *Summary) FormatWords(words int) string {
+	return fmt.Sprintf("%,d", words)
+}
+
+var funcMap = template.FuncMap{
+	"FormatTime":     (*Summary).FormatTime,
+	"FormatOverview": (*Summary).FormatOverview,
+	"FormatRuntime":  (*Summary).FormatRuntime,
+	"FormatWords":    (*Summary).FormatWords,
+}
+
+var summaryTemplate = template.Must(template.New("SummaryEmail").Funcs(funcMap).Parse(
 	`From: "Vibe" {{if .ViaEmail}}<{{.ViaEmail}}>{{else}}<no-reply@vibe.us>{{end}}
 To: {{.Email}}
-Subject: Summary
+Subject: Your meeting summary is here!
 MIME-Version: 1.0
 Content-Type: multipart/alternative; boundary="VN9IOIHhMoPcH0icu"
 
@@ -55,113 +91,247 @@ Content-Disposition: inline
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
+
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Reset Password</title>
-<style type="text/css">.background_main,body,div,p,table,td{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif}img{border:none;-ms-interpolation-mode:bicubic;max-width:100%}p{padding-bottom:2px}body{background:#fff;font-size:17px;line-height:24px;margin:0;padding:0;-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%}table{border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;width:100%}td{font-size:17px;line-height:24px;vertical-align:top}.email_footer a,.email_footer p,.email_footer span,.email_footer td{font-size:15px;text-align:center}.email_footer td{padding-top:20px}h1,h2,h3,h4{color:#434245;font-weight:400;line-height:1.4;margin:0;margin-bottom:12px}h1{font-size:30px;line-height:36px;font-weight:900;letter-spacing:-.75px;text-align:left}ol,p,ul{font-size:17px;line-height:24px;font-weight:400;margin:0;margin-bottom:15px}ol li,p li,ul li{list-style-position:inside;margin-left:5px}a{color:#3498db;text-decoration:none}a:hover{text-decoration:underline}.button_link::after{position:absolute;content:'';top:0;right:0;bottom:0;left:0;border-radius:4px}.button_link:hover::after{box-shadow:inset 0 -2px #237c4a}.preview_text{color:transparent;display:none;height:0;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;visibility:hidden;width:0;font-size:1px;line-height:1px}.preview_text a{color:#3aa3e3!important;font-weight:700}@media only screen and (max-width:600px){table[class=background_main] .sm_full_width{width:100%!important}table[class=background_main] .sm_align_center{text-align:center!important}table[class=background_main] .sm_auto_width{width:auto!important}table[class=background_main] .sm_auto_height{height:auto!important}table[class=background_main] .sm_border_box{box-sizing:border-box!important}table[class=background_main] .sm_block{display:block!important}table[class=background_main] .sm_inline_block{display:inline-block!important}table[class=background_main] .sm_table{display:table!important}table[class=background_main] .sm_no_side_padding{padding-right:0!important;padding-left:0!important}table[class=background_main] .sm_no_border_radius{border-radius:0!important}table[class=background_main] .sm_no_padding{padding-right:0!important;padding-left:0!important}table[class=background_main] .sm_os_icons_height{height:44px}.social_img_bottom_margin{margin-bottom:20px!important}.social_p_bottom_margin{margin-bottom:40px!important}}@media all{.ExternalClass{width:100%}.ExternalClass,.ExternalClass div,.ExternalClass font,.ExternalClass p,.ExternalClass span,.ExternalClass td{line-height:100%}.email_footer a{color:#434245!important;font-family:inherit!important;font-size:inherit!important;font-weight:inherit!important;line-height:inherit!important;text-decoration:none!important}}a:hover{text-decoration:underline!important}</style>
-</head>
-<body>
-<!--[if mso]>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Vibe Meeting Summary</title>
+    <!--[if mso]>
+    <noscript>
+    <xml>
+        <o:OfficeDocumentSettings>
+            <o:PixelsPerInch>96</o:PixelsPerInch>
+        </o:OfficeDocumentSettings>
+    </xml>
+    </noscript>
+    <![endif]-->
     <style type="text/css">
+        @media only screen and (max-width: 600px) {
+            .main-table {
+                width: 100% !important;
+            }
 
-    .background_main, table, table td, p, div, h1, h2, h3, h4, h5, h6 {
-    font-family: Arial, sans-serif !important;
-    }
-
+            .mobile-padding {
+                padding-left: 10px !important;
+                padding-right: 10px !important;
+            }
+        }
     </style>
-  <![endif]-->
-<table width="100%" cellpadding="0" cellspacing="0" border="0" class="background_main" style="background-color:#fff;padding-top:20px;color:#434245;width:100%;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale">
-<tr>
-<td valign="top" class="sm_full_width" style="margin:0 auto;width:100%;max-width:600px;display:block">
-<div class="sm_no_padding" style="margin:0 auto;padding:30px 0 40px;display:block;box-sizing:border-box">
-<table style="width:100%;color:#434245" border="0" cellpadding="0" cellspacing="0">
-<tr>
-<td style="box-sizing:border-box">
-<table border="0" cellpadding="0" cellspacing="0">
-<tr>
-<td>
-<!--[if mso]>
-              <table cellpadding="0" cellspacing="0" border="0" style="padding: 0; margin: 0; width: 100%;">
-              <tr>
-              <td colspan="3" style="padding: 0; margin: 0; font-size: 20px; height: 20px;" height="20">&nbsp;</td>
-              </tr>
-              <tr>
-              <td style="padding: 0; margin: 0;">&nbsp;</td>
-              <td style="padding: 0; margin: 0;" width="540">
-            <![endif]-->
-<img style="width:38px;height:38px;margin:0 0 15px 0;padding-right:30px;padding-left:30px" alt="" width="38" height="38" src="https://app.vibe.us/static/media/vibe-icon-128.png"/>
-<br>
-<br>
-<h1 style="font-size:30px;padding-right:30px;padding-left:30px">Summary</h1>
-<div style="padding-right:30px;padding-left:30px;margin-top:40px;margin-bottom:30px">
-<table style="width:100%" class="sm_table">
-<tr style="width:100%">
-<p style="font-size:15px;padding-right:30px;padding-left:0px;padding-top:8px;">start time: {{.StartTime}}</p>
-</tr>
-<tr style="width:100%">
-<p style="font-size:15px;padding-right:30px;padding-left:0px;padding-top:8px;">runtime: {{.Runtime}} seconds</p>
-</tr>
-<tr style="width:100%">
-<p style="font-size:15px;padding-right:30px;padding-left:0px;padding-top:8px;">participants: {{.ParticipantsCount}}</p>
-</tr>
-<tr style="width:100%">
-<p style="font-size:15px;padding-right:30px;padding-left:0px;padding-top:8px;">words: {{.Words}}</p>
-</tr>
-<tr style="width:100%">
-<p style="font-size:15px;padding-right:30px;padding-left:0px;padding-top:8px;">overview: </p>
-{{range $index,$value := .Overview}}
-<p style="font-size:15px;padding-right:30px;padding-left:0px;padding-top:8px;">{{$value}}</p>
-{{end}}
-</tr>
-<tr style="width:100%">
-<td style="width:100%">
-<span style="display:inline-block;position:relative;border-radius:4px;background-color:#463ff4" class="sm_full_width">
-<a class="button_link sm_full_width sm_border_box" href="{{.Link}}" style="padding:16px 40px;border-radius:4px;background-color:#463ff4;color:#fff;font-size:20px;line-height:24px;word-break:break-word;display:inline-block;text-align:center;font-weight:700;text-decoration:none!important">
-Summary
-</a>
-</span>
-</td>
-</tr>
-</table>
-</div>
-<p style="font-size:17px;padding-right:30px;padding-left:30px;margin-top:40px;margin-bottom:30px">
-<strong>Didn't request this email?</strong>
-<br/>No worries! Your address may have been entered by mistake. You can safely ignore or delete this message.</p>
-<!--[if mso]>
-              </td>
-              <td style="padding: 0; margin: 0;">&nbsp;</td>
-              </tr>
-              <tr>
-              <td colspan="3" style="padding: 0; margin: 0; font-size: 20px; height: 20px;" height="20">&nbsp;</td>
-              </tr>
-              </table>
-              <![endif]-->
-</td>
-</tr>
-</table>
-</td>
-</tr>
-</table>
-</div>
-</td>
-</tr>
-<tr>
-<td class="email_footer" style="padding:0 30px 40px;border-top:1px solid #e1e1e4;line-height:24px;font-size:15px;color:#717274;text-align:center;width:100%">
-<table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top:20px;background-color:#fff">
-<tr>
-<td>&nbsp;</td>
-<td>
-<span style="display:block"><a href="https://vibe.us" style="text-decoration:none;color:#434245">Vibe Inc.</a></span>
-</td>
-<td>&nbsp;</td>
-</tr>
-</table>
-</td>
-</tr>
-</table>
-</body>
-</html>
+</head>
 
+<body
+    style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; background-color: #fff; margin: 0; padding: 0; width: 100%;">
+    <center style="width: 100%; background-color: #ffffff;">
+        <!--[if mso | IE]>
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="600" align="center" style="width:600px;">
+        <tr>
+        <td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;">
+        <![endif]-->
+        <div style="max-width: 600px; margin: 0 auto;">
+            <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse;"
+                class="main-table">
+                <tr>
+                    <td style="background-color: #000; text-align: center; height: 48px; font-size: 0; line-height: 0;">
+                        <img src="https://via.placeholder.com/68x22" alt="Vibe icon"
+                            style="height: 22px; width: 68px; vertical-align: middle; display: inline-block;">
+                    </td>
+                </tr>
+                <tr>
+                    <td style="background-color: #fff; padding: 24px 24px 16px 24px; font-size: 14px; line-height: 21px; text-align: left;"
+                        class="mobile-padding">
+                        A recording log has been sent to you via {{.DeviceName}}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 0 24px;" class="mobile-padding">
+                        <table
+                            style="width: 100%; background-color: #001BAA; color: #fff; padding: 24px; border-radius: 8px; box-shadow: 0px 4px 16px 0px #00000040;">
+                            <tr>
+                                <td style="width: 70%;">
+                                    <div>
+                                        <h2
+                                            style="margin: 0; font-size: 20px; font-weight: 400; line-height: 1.2; color: #FFFFFFE5;">
+                                            {{.MeetingTitle}}</h2>
+                                        <p
+                                            style="margin: 4px 0 0; font-size: 16px; font-weight: 400; line-height: 1.2; color: #FFFFFFE5;">
+                                            {{.FormatTime .StartTime}}</p>
+                                    </div>
+                                    <div style="margin-top: 20px;">
+                                        <a href="{{.Link}}"
+                                            style="background-color: transparent; border: 1px solid #FFFFFF; color: #fff; border-radius: 50px; cursor: pointer; font-size: 14px; padding: 10px 20px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; line-height: 1;">
+                                            <img src="https://via.placeholder.com/15x15" alt="Play icon"
+                                                style="width: 15px; height: 15px; margin-right: 8px;">
+                                            <span style="display: inline-block; vertical-align: middle;">Play</span>
+                                        </a>
+                                    </div>
+                                </td>
+                                <td style="width: 30%; vertical-align: top; text-align: right;">
+                                    <img src="https://via.placeholder.com/80x80" alt="Audio icon"
+                                        style="width: 80px; height: 80px; mix-blend-mode: soft-light;">
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 32px 24px 0;" class="mobile-padding">
+                        <table style="width: 100%;">
+                            <tr>
+                                <td style="display: flex; align-items: center;">
+                                    <img src="https://via.placeholder.com/24x24" alt="Talktime Breakdown icon"
+                                        style="width: 24px; height: 24px; margin-right: 4px;">
+                                    <span
+                                        style="font-size: 14px; line-height: 24px; color: #222222; font-weight: 500;">Talktime
+                                        Breakdown</span>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 16px 24px 0;" class="mobile-padding">
+                        <table style="width: 100%; border-spacing: 0;">
+                            <tr>
+                                <td
+                                    style="background-color: #F8F8F8; padding: 8px 16px; border-radius: 8px; width: 33.33%;">
+                                    <table style="width: 100%;">
+                                        <tr>
+                                            <td style="font-size: 10px; color: #8B8B8B; text-align: left;">Runtime</td>
+                                            <td
+                                                style="font-size: 16px; font-weight: 500; color: #222222; text-align: right;">
+                                                {{.FormatRuntime .Runtime}}
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                                <td style="padding: 4px;"></td>
+                                <td
+                                    style="background-color: #F8F8F8; padding: 8px 16px; border-radius: 8px; width: 33.33%;">
+                                    <table style="width: 100%;">
+                                        <tr>
+                                            <td style="font-size: 10px; color: #8B8B8B; text-align: left;">Speakers</td>
+                                            <td
+                                                style="font-size: 16px; font-weight: 500; color: #222222; text-align: right;">
+                                                {{.ParticipantsCount}}</td>
+                                        </tr>
+                                    </table>
+                                </td>
+                                <td style="padding: 4px;"></td>
+                                <td
+                                    style="background-color: #F8F8F8; padding: 8px 16px; border-radius: 8px; width: 33.33%;">
+                                    <table style="width: 100%;">
+                                        <tr>
+                                            <td style="font-size: 10px; color: #8B8B8B; text-align: left;">Words spoken
+                                            </td>
+                                            <td
+                                                style="font-size: 16px; font-weight: 500; color: #222222; text-align: right;">
+                                                {{.FormatWords .Words}}</td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                    </td>
+                    <td style="padding: 0; margin: 0;">&nbsp;</td>
+                    </td>
+                    <td style="padding: 0; margin: 0;">&nbsp;</td>
+                </tr>
+                <tr>
+                    <td style="padding: 32px 24px 0;" class="mobile-padding">
+                        <table style="width: 100%;">
+                            <tr>
+                                <td style="display: flex; align-items: center;">
+                                    <img src="https://via.placeholder.com/24x24" alt="Log Summary icon"
+                                        style="width: 24px; height: 24px; margin-right: 4px;">
+                                    <span
+                                        style="font-size: 14px; line-height: 24px; color: #222222; font-weight: 500;">Log
+                                        Summary</span>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 16px 24px 0;" class="mobile-padding">
+                        <table style="width: 100%; background-color: #f8f8f8; padding: 24px; border-radius: 8px;">
+                            <tr>
+                                <td
+                                    style="margin: 0; font-size: 14px; font-weight: 400; line-height: 21px; text-align: left;">
+                                    {{.FormatOverview .Overview}}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding-top: 24px;">
+                                    <!--[if mso]>
+                                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{{.Link}}" style="height:40px;v-text-anchor:middle;width:150px;" arcsize="50%" strokecolor="#405EFF" fillcolor="#405EFF">
+                                    <w:anchorlock/>
+                                    <center style="color:#ffffff;font-family:sans-serif;font-size:14px;font-weight:bold;">See Full Summary</center>
+                                    </v:roundrect>
+                                    <![endif]-->
+                                    <!--[if !mso]><!-->
+                                    <a href="{{.Link}}"
+                                        style="background-color: #405EFF; border: 1px solid #405EFF; border-radius: 20px; color: #ffffff; display: inline-block; font-size: 14px; font-weight: bold; line-height: 40px; text-align: center; text-decoration: none; width: 150px; -webkit-text-size-adjust: none;">See
+                                        Full Summary</a>
+                                    <!--<![endif]-->
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="height: 32px; font-size: 1px; line-height: 1px;">&nbsp;</td>
+                </tr>
+                <tr>
+                    <td style="padding: 32px 40px; text-align: center; font-size: 12px; color: #FFFFFF; background-color: #111111;"
+                        class="mobile-padding">
+                        <table cellpadding="0" cellspacing="0" border="0" style="width: 100%; margin-bottom: 15px;">
+                            <tr>
+                                <td align="center">
+                                    <table cellpadding="0" cellspacing="0" border="0">
+                                        <tr>
+                                            <td style="padding: 0 16px;"><img src="https://via.placeholder.com/24x24"
+                                                    alt="Facebook icon"
+                                                    style="width: 24px; height: 24px; display: block;"></td>
+                                            <td style="padding: 0 16px;"><img src="https://via.placeholder.com/29x24"
+                                                    alt="Instagram icon"
+                                                    style="width: 29px; height: 24px; display: block;"></td>
+                                            <td style="padding: 0 16px;"><img src="https://via.placeholder.com/24x24"
+                                                    alt="LinkedIn icon"
+                                                    style="width: 24px; height: 24px; display: block;"></td>
+                                            <td style="padding: 0 16px;"><img src="https://via.placeholder.com/24x24"
+                                                    alt="X icon" style="width: 24px; height: 24px; display: block;">
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+                        <div style="margin-bottom: 16px;">
+                            <p style="margin: 0;">Vibe Inc, 10400 NE 4th ST, STE 500, Bellevue, Washington 98004, USA
+                            </p>
+                        </div>
+                        <div style="margin-bottom: 32px;">
+                            <p style="margin: 0; color: #FFFFFF;">
+                                <a href="#" style="color: #FFFFFF; text-decoration: underline;">Unsubscribe</a> •
+                                <a href="#" style="color: #FFFFFF; text-decoration: underline;">Manage preferences</a>
+                            </p>
+                        </div>
+                        <div>
+                            <p style="margin: 0;">© Vibe vibe.us</p>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <!--[if mso | IE]>
+        </td>
+        </tr>
+        </table>
+        <![endif]-->
+    </center>
+</body>
+
+</html>
 --VN9IOIHhMoPcH0icu--
 `))

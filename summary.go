@@ -34,7 +34,7 @@ func (i *Summary) SetViaEmail(viaEmail string) {
 	i.ViaEmail = viaEmail
 }
 
-// 转换时间格式成Monday 3:04pm • Jan 2, 2006
+// 转换时间格式成 Monday 3:04pm • Jan 2, 2006
 func (i *Summary) FormatTime(t time.Time) string {
 	return t.Format("Monday 3:04pm • Jan 2, 2006")
 }
